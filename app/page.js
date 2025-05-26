@@ -10,7 +10,7 @@ const BookOpenIcon = () => <>📖</>; // Icono de libro
 const dictionaryData = [
   { id: 1, term: "Etsamen", definition: "Derivado de la palabra 'examen', utilizado por Uri para meter miedo." },
   { id: 2, term: "Etsel", definition: "Deformación de 'Excel', programa que Uri domina." },
-  { id: 3, term: "Etsenso", definition: "Intento fallido de decir 'censo' o 'consenso', típico de Uri." },
+  { id: 3, term: "Etsenso", definition: "Intento fallido de decir 'extenso'." },
   { id: 4, term: "Atsiones", definition: "Cuando Uri intenta hablar de 'acciones' y le sale esto." },
   { id: 5, term: "Prótsimo", definition: "La forma en la que Uri te dice que algo es 'próximo', pero con su toque especial." },
   { id: 6, term: "Etsplicar", definition: "El arte de Uri de 'explicar' algo, haciéndolo más confuso." },
