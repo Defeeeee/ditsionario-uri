@@ -1,3 +1,5 @@
+"use client"; // Directiva para marcarlo como Componente de Cliente
+
 import React, { useState } from 'react';
 // import Head from 'next/head'; // Se eliminó esta línea para evitar errores de compilación en entornos sin contexto Next.js
 
@@ -8,14 +10,14 @@ const BookOpenIcon = () => <>📖</>; // Icono de libro
 const dictionaryData = [
   { id: 1, term: "Etsamen", definition: "Derivado de la palabra 'examen', utilizado por Uri para meter miedo." },
   { id: 2, term: "Etsel", definition: "Deformación de 'Excel', programa que Uri domina." },
-  { id: 3, term: "Etsenso", definition: "Intento fallido de decir 'extenso', típico de Uri." },
+  { id: 3, term: "Etsenso", definition: "Intento fallido de decir 'censo' o 'consenso', típico de Uri." },
   { id: 4, term: "Atsiones", definition: "Cuando Uri intenta hablar de 'acciones' y le sale esto." },
   { id: 5, term: "Prótsimo", definition: "La forma en la que Uri te dice que algo es 'próximo', pero con su toque especial." },
   { id: 6, term: "Etsplicar", definition: "El arte de Uri de 'explicar' algo, haciéndolo más confuso." },
   { id: 7, term: "Ditsionario", definition: "La versión de Uri de un 'diccionario', probablemente con más palabras como estas." },
-  { id: 8, term: "Atseso / Atseder", definition: "Cuando Uri quiere 'acceso' o 'acceder'." },
+  { id: 8, term: "Atseso / Atseder", definition: "Cuando Uri quiere 'acceso' o 'acceder' y suelta estas joyas." },
   { id: 9, term: "Etsplanada", definition: "Si Uri te cita en la 'explanada', prepárate para cualquier cosa." },
-  { id: 10, term: "Beit Hamiknash", definition: "Término hebreo para el Templo de Jerusalén, que Uri usa para sonar culto." },
+  { id: 10, term: "Beit Hamiknash", definition: "Término hebreo para el Templo de Jerusalén, que Uri usa para sonar culto, aunque no siempre sepa qué significa." },
 ];
 
 // Componente Principal de la App
