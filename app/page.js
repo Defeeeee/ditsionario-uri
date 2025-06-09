@@ -1,12 +1,13 @@
 "use client"; // Directiva para marcarlo como Componente de Cliente
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 // Iconos (se pueden reemplazar con Lucide u otros)
 const SearchIcon = () => <>🔍</>; // Icono de búsqueda
 const BookOpenIcon = () => <>📖</>; // Icono de libro
 const XIcon = () => <>✕</>; // Icono para cerrar (modal)
 const PlusCircleIcon = () => <>➕</>; // Icono para proponer palabra
+const LockIcon = () => <>🔒</>; // Icono de candado para login
 
 const dictionaryData = [
   { id: 1, term: "Etsamen", definition: "Derivado de la palabra 'examen', utilizado por Uri para meter miedo." },
@@ -19,6 +20,13 @@ const dictionaryData = [
   { id: 8, term: "Atseso / Atseder", definition: "Cuando Uri quiere 'acceso' o 'acceder' y suelta estas joyas." },
   { id: 9, term: "Etsplanada", definition: "Si Uri te cita en la 'explanada', prepárate para cualquier cosa." },
   { id: 10, term: "Beit Hamiknash", definition: "Término hebreo para el Templo de Jerusalén, que Uri usa para sonar culto, aunque no siempre sepa qué significa." },
+  { id: 11, term: "etsempto", definition: "Cuando Uri intenta decir 'exento' pero su lengua tiene otros planes." },
+  { id: 12, term: "etsilio", definition: "La versión de Uri para 'exilio', cuando alguien es desterrado de su presencia." },
+  { id: 13, term: "tsionismo", definition: "La peculiar forma en que Uri se refiere al 'sionismo', movimiento que probablemente explica con la misma claridad." },
+  { id: 14, term: "etsetera", definition: "Lo que Uri dice cuando quiere terminar una lista pero no sabe cómo pronunciar 'etcétera'." },
+  { id: 15, term: "etsremismo", definition: "Cuando Uri habla de 'extremismo' pero lo hace de forma extremadamente incorrecta." },
+  { id: 16, term: "tsi", definition: "La versión minimalista de Uri para decir 'sí', ahorrando energía para sus explicaciones confusas." },
+  { id: 17, term: "etsalumno", definition: "Lo que Uri llama a un 'ex-alumno' que ha sobrevivido a sus clases y ahora vive para contarlo." },
 ];
 
 // Componente Principal de la App
@@ -30,6 +38,9 @@ export default function DictionaryApp() {
   const [newDefinition, setNewDefinition] = useState('');
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false); // Estado para el envío
+  const [isLoggedIn, setIsLoggedIn] = useState(false); // Estado para el login
+  const [password, setPassword] = useState(''); // Estado para la contraseña
+  const [loginError, setLoginError] = useState(''); // Estado para errores de login
 
   // !!! IMPORTANTE: REEMPLAZA ESTA URL CON LA URL DE TU SCRIPT DE GOOGLE APPS !!!
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbykcHYgW_jiDFJ7rX4rTRYRGQummqyqFJJXdpWO3WiI9ZPEZYiAMTd-1XHouMxa354N/exec';
@@ -60,6 +71,26 @@ export default function DictionaryApp() {
     setNewDefinition('');
     setFeedbackMessage('');
   };
+
+  const handleLogin = (event) => {
+    event.preventDefault();
+    if (password === 'urigoat') {
+      setIsLoggedIn(true);
+      setLoginError('');
+      // Guardar en localStorage para mantener la sesión
+      localStorage.setItem('ditsionarioLoggedIn', 'true');
+    } else {
+      setLoginError('Contraseña incorrecta. Inténtalo de nuevo.');
+    }
+  };
+
+  // Verificar si el usuario ya estaba logueado
+  useEffect(() => {
+    const isUserLoggedIn = localStorage.getItem('ditsionarioLoggedIn') === 'true';
+    if (isUserLoggedIn) {
+      setIsLoggedIn(true);
+    }
+  }, []);
 
   const handleSubmitProposal = async (event) => {
     event.preventDefault();
@@ -120,6 +151,50 @@ export default function DictionaryApp() {
   };
 
 
+  // Renderizado condicional basado en el estado de login
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-gray-100 font-sans flex flex-col items-center justify-center p-4 sm:p-6 md:p-8">
+        <div className="bg-slate-800/70 p-8 rounded-xl shadow-xl border border-slate-700 w-full max-w-md">
+          <div className="flex items-center justify-center mb-6">
+            <span className="text-4xl mr-3"><LockIcon /></span>
+            <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-sky-400 to-blue-500">
+              Atseso Restringido
+            </h1>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-1">
+                Contraseña
+              </label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-3 bg-slate-700 border border-slate-600 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none placeholder-slate-500 text-gray-100"
+                placeholder="Ingresa la contraseña"
+                autoFocus
+              />
+            </div>
+
+            {loginError && (
+              <p className="text-red-400 text-sm">{loginError}</p>
+            )}
+
+            <button
+              type="submit"
+              className="w-full px-5 py-3 text-white bg-sky-500 hover:bg-sky-600 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-opacity-75 transition-colors"
+            >
+              Atseder
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
       <>
         <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 text-gray-100 font-sans flex flex-col items-center p-4 sm:p-6 md:p-8">
@@ -131,7 +206,18 @@ export default function DictionaryApp() {
                 Ditsionario Uri
               </h1>
             </div>
-            <p className="text-lg text-slate-400">V1.0.5</p>
+            <div className="flex justify-between items-center">
+              <p className="text-lg text-slate-400">V1.0.6</p>
+              <button 
+                onClick={() => {
+                  localStorage.removeItem('ditsionarioLoggedIn');
+                  setIsLoggedIn(false);
+                }}
+                className="text-sm px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
+              >
+                Cerrar Sesión
+              </button>
+            </div>
           </header>
 
           {/* Sección de la Barra de Búsqueda */}
