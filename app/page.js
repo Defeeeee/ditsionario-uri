@@ -39,8 +39,11 @@ export default function DictionaryApp() {
   const [feedbackMessage, setFeedbackMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false); // Estado para el envío
   const [isLoggedIn, setIsLoggedIn] = useState(false); // Estado para el login
+  const [isAdmin, setIsAdmin] = useState(false); // Estado para el admin
   const [password, setPassword] = useState(''); // Estado para la contraseña
   const [loginError, setLoginError] = useState(''); // Estado para errores de login
+  const [pendingSuggestions, setPendingSuggestions] = useState([]); // Estado para sugerencias pendientes
+  const [approvedSuggestions, setApprovedSuggestions] = useState([]); // Estado para sugerencias aprobadas
 
   // !!! IMPORTANTE: REEMPLAZA ESTA URL CON LA URL DE TU SCRIPT DE GOOGLE APPS !!!
   const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbykcHYgW_jiDFJ7rX4rTRYRGQummqyqFJJXdpWO3WiI9ZPEZYiAMTd-1XHouMxa354N/exec';
@@ -72,24 +75,165 @@ export default function DictionaryApp() {
     setFeedbackMessage('');
   };
 
+  // Función para aprobar una sugerencia
+  const handleApproveSuggestion = async (suggestionId) => {
+    try {
+      // Encontrar la sugerencia en las pendientes
+      const suggestionToApprove = pendingSuggestions.find(suggestion => suggestion.id === suggestionId);
+      if (!suggestionToApprove) return;
+
+      // Enviar a la API
+      const response = await fetch('/api/suggestions', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: suggestionId,
+          action: 'approve'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Crear una nueva entrada para el diccionario
+        const newDictionaryEntry = {
+          id: suggestionToApprove.id,
+          term: suggestionToApprove.term,
+          definition: suggestionToApprove.definition
+        };
+
+        // Añadir a las sugerencias aprobadas
+        const updatedApprovedSuggestions = [...approvedSuggestions, {
+          ...suggestionToApprove,
+          status: 'approved'
+        }];
+        setApprovedSuggestions(updatedApprovedSuggestions);
+
+        // Eliminar de las sugerencias pendientes
+        const updatedPendingSuggestions = pendingSuggestions.filter(suggestion => suggestion.id !== suggestionId);
+        setPendingSuggestions(updatedPendingSuggestions);
+
+        // Actualizar searchResults para incluir la nueva entrada
+        setSearchResults([...dictionaryData, ...updatedApprovedSuggestions.map(s => ({
+          id: s.id,
+          term: s.term,
+          definition: s.definition
+        }))]);
+      } else {
+        console.error("Error al aprobar la sugerencia:", result.error);
+        alert(`Error al aprobar la sugerencia: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error al aprobar la sugerencia:", error);
+      alert("Error al aprobar la sugerencia. Por favor, inténtalo de nuevo.");
+    }
+  };
+
+  // Función para rechazar una sugerencia
+  const handleRejectSuggestion = async (suggestionId) => {
+    try {
+      // Enviar a la API
+      const response = await fetch('/api/suggestions', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: suggestionId,
+          action: 'reject'
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Eliminar de las sugerencias pendientes
+        const updatedPendingSuggestions = pendingSuggestions.filter(suggestion => suggestion.id !== suggestionId);
+        setPendingSuggestions(updatedPendingSuggestions);
+      } else {
+        console.error("Error al rechazar la sugerencia:", result.error);
+        alert(`Error al rechazar la sugerencia: ${result.error}`);
+      }
+    } catch (error) {
+      console.error("Error al rechazar la sugerencia:", error);
+      alert("Error al rechazar la sugerencia. Por favor, inténtalo de nuevo.");
+    }
+  };
+
   const handleLogin = (event) => {
     event.preventDefault();
     if (password === 'urigoat') {
       setIsLoggedIn(true);
+      setIsAdmin(false);
       setLoginError('');
       // Guardar en localStorage para mantener la sesión
       localStorage.setItem('ditsionarioLoggedIn', 'true');
+      localStorage.setItem('ditsionarioIsAdmin', 'false');
+    } else if (password === 'uriadmin') {
+      setIsLoggedIn(true);
+      setIsAdmin(true);
+      setLoginError('');
+      // Guardar en localStorage para mantener la sesión
+      localStorage.setItem('ditsionarioLoggedIn', 'true');
+      localStorage.setItem('ditsionarioIsAdmin', 'true');
     } else {
       setLoginError('Contraseña incorrecta. Inténtalo de nuevo.');
     }
   };
 
-  // Verificar si el usuario ya estaba logueado
+  // Cargar datos desde la API al iniciar
   useEffect(() => {
+    // Verificar si el usuario ya estaba logueado
     const isUserLoggedIn = localStorage.getItem('ditsionarioLoggedIn') === 'true';
     if (isUserLoggedIn) {
       setIsLoggedIn(true);
+
+      // Verificar si es admin
+      const isUserAdmin = localStorage.getItem('ditsionarioIsAdmin') === 'true';
+      setIsAdmin(isUserAdmin);
     }
+
+    // Inicializar la base de datos y cargar sugerencias
+    const initializeAndFetchData = async () => {
+      try {
+        // Inicializar la base de datos
+        await fetch('/api/init-db');
+
+        // Cargar sugerencias desde la API
+        const response = await fetch('/api/suggestions?type=all');
+        const result = await response.json();
+
+        if (result.success) {
+          // Establecer sugerencias pendientes
+          if (result.data.pending) {
+            setPendingSuggestions(result.data.pending);
+          }
+
+          // Establecer sugerencias aprobadas
+          if (result.data.approved) {
+            setApprovedSuggestions(result.data.approved);
+
+            // Añadir sugerencias aprobadas a los resultados de búsqueda
+            const approvedEntries = result.data.approved.map(suggestion => ({
+              id: suggestion.id,
+              term: suggestion.term,
+              definition: suggestion.definition
+            }));
+
+            // Combinar con el diccionario original
+            setSearchResults([...dictionaryData, ...approvedEntries]);
+          }
+        } else {
+          console.error('Error al cargar sugerencias:', result.error);
+        }
+      } catch (error) {
+        console.error('Error al inicializar o conectar con la API:', error);
+      }
+    };
+
+    initializeAndFetchData();
   }, []);
 
   const handleSubmitProposal = async (event) => {
@@ -102,49 +246,59 @@ export default function DictionaryApp() {
     setIsSubmitting(true);
     setFeedbackMessage('Enviando propuesta...');
 
-    const payload = {
-      palabraPropuesta: newWord,
-      definicionPropuesta: newDefinition,
-    };
-
     try {
+      // Crear nueva sugerencia
+      const newSuggestion = {
+        id: Date.now().toString(), // Usar timestamp como ID único
+        term: newWord,
+        definition: newDefinition,
+        date: new Date().toISOString(),
+        status: 'pending'
+      };
+
+      // Enviar a la API
+      const response = await fetch('/api/suggestions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSuggestion),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Añadir a las sugerencias pendientes en el estado local
+        setPendingSuggestions([...pendingSuggestions, newSuggestion]);
+
+        // Mostrar mensaje de éxito
+        setFeedbackMessage(`¡Gracias por proponer "${newWord}"! Tu sugerencia será revisada por un administrador.`);
+        setNewWord('');
+        setNewDefinition('');
+      } else {
+        console.error("Error al guardar la propuesta:", result.error);
+        setFeedbackMessage(`Error al guardar la propuesta: ${result.error}`);
+      }
+
+      // Opcional: También enviar a Google Script si se desea mantener esa funcionalidad
+      // Comentado para usar solo la base de datos CSV
+      /*
+      const payload = {
+        palabraPropuesta: newWord,
+        definicionPropuesta: newDefinition,
+      };
+
       const response = await fetch(GOOGLE_SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify(payload),
         headers: {
           'Content-Type': 'text/plain;charset=utf-8',
         },
-        // No es necesario 'mode: "no-cors"' aquí, ya que el script de Google Apps
-        // configurado para "Cualquier usuario" y devolviendo JSON con ContentService
-        // debería manejar las solicitudes correctamente y permitir leer la respuesta.
-        // Si hay problemas de CORS, es probable que la implementación del script
-        // (específicamente la configuración de "Quién tiene acceso") necesite revisión.
       });
-
-      const resultText = await response.text(); // Primero obtenemos el texto de la respuesta
-      let result;
-      try {
-        result = JSON.parse(resultText); // Intentamos parsear como JSON
-      } catch (e) {
-        console.error("Error al parsear la respuesta JSON del script:", e);
-        console.error("Texto de la respuesta recibida:", resultText);
-        setFeedbackMessage('Error: La respuesta del servidor no es un JSON válido. Revisa la consola para más detalles.');
-        setIsSubmitting(false);
-        return;
-      }
-
-
-      if (result.result === "success") {
-        setFeedbackMessage(`¡Gracias por proponer "${newWord}"! ${result.message}`);
-        setNewWord('');
-        setNewDefinition('');
-      } else {
-        console.error("Error devuelto por Google Script:", result.message);
-        setFeedbackMessage(`Error al enviar la propuesta: ${result.message || 'Respuesta no esperada del servidor.'}`);
-      }
+      */
     } catch (error) {
-      console.error("Error en la petición fetch a Google Script:", error);
-      setFeedbackMessage('Error de conexión al enviar la propuesta. Revisa tu conexión, la URL del script e inténtalo de nuevo.');
+      console.error("Error al guardar la propuesta:", error);
+      setFeedbackMessage('Error al guardar la propuesta. Por favor, inténtalo de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -207,11 +361,13 @@ export default function DictionaryApp() {
               </h1>
             </div>
             <div className="flex justify-between items-center">
-              <p className="text-lg text-slate-400">V1.0.6</p>
+              <p className="text-lg text-slate-400">V1.0.6 {isAdmin && <span className="ml-2 text-green-400">(Admin)</span>}</p>
               <button 
                 onClick={() => {
                   localStorage.removeItem('ditsionarioLoggedIn');
+                  localStorage.removeItem('ditsionarioIsAdmin');
                   setIsLoggedIn(false);
+                  setIsAdmin(false);
                 }}
                 className="text-sm px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg transition-colors"
               >
@@ -219,6 +375,62 @@ export default function DictionaryApp() {
               </button>
             </div>
           </header>
+
+          {/* Panel de Administración */}
+          {isAdmin && (
+            <div className="w-full max-w-4xl mb-8 bg-slate-800/70 p-5 rounded-xl border border-slate-700">
+              <h2 className="text-2xl font-bold text-sky-400 mb-4">Panel de Administración</h2>
+
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-slate-200 mb-3">Sugerencias Pendientes</h3>
+
+                {pendingSuggestions.length === 0 ? (
+                  <p className="text-slate-400">No hay sugerencias pendientes de aprobación.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingSuggestions.map((suggestion) => (
+                      <div key={suggestion.id} className="bg-slate-700 p-4 rounded-lg border border-slate-600">
+                        <h4 className="text-lg font-medium text-sky-300">{suggestion.term}</h4>
+                        <p className="text-slate-300 mb-3">{suggestion.definition}</p>
+                        <p className="text-xs text-slate-400 mb-3">Propuesto el: {new Date(suggestion.date).toLocaleString()}</p>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => handleApproveSuggestion(suggestion.id)}
+                            className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm"
+                          >
+                            Aprobar
+                          </button>
+                          <button
+                            onClick={() => handleRejectSuggestion(suggestion.id)}
+                            className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm"
+                          >
+                            Rechazar
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-xl font-semibold text-slate-200 mb-3">Sugerencias Aprobadas</h3>
+
+                {approvedSuggestions.length === 0 ? (
+                  <p className="text-slate-400">No hay sugerencias aprobadas.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {approvedSuggestions.map((suggestion) => (
+                      <div key={suggestion.id} className="bg-slate-700 p-3 rounded-lg border border-slate-600">
+                        <h4 className="text-md font-medium text-sky-300">{suggestion.term}</h4>
+                        <p className="text-sm text-slate-300">{suggestion.definition}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Sección de la Barra de Búsqueda */}
           <div className="w-full max-w-xl mb-6">
